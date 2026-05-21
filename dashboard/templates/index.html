@@ -1,0 +1,494 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Forecast Studio</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@600;800&display=swap');
+
+        :root {
+            --bg: #f5efe3;
+            --paper: #fffaf0;
+            --ink: #0d1f2d;
+            --muted: #556676;
+            --accent: #0e7490;
+            --accent-soft: #d9f0f4;
+            --warm: #f59e0b;
+            --mood: #14b8a6;
+            --stress: #ef4444;
+            --load: #f59e0b;
+            --done: #16a34a;
+            --pending: #475569;
+            --ring: rgba(14, 116, 144, 0.18);
+            --card-shadow: 0 18px 42px rgba(13, 31, 45, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 10% 12%, rgba(20, 184, 166, 0.24), transparent 28%),
+                radial-gradient(circle at 82% 8%, rgba(245, 158, 11, 0.26), transparent 30%),
+                linear-gradient(140deg, #f5efe3 0%, #f8f7f2 45%, #fdf7ef 100%);
+        }
+
+        .page {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 30px 18px 46px;
+        }
+
+        .hero {
+            background: linear-gradient(130deg, #0d1f2d 0%, #113149 46%, #0e7490 100%);
+            color: #f8fbff;
+            border-radius: 24px;
+            padding: 26px 28px;
+            box-shadow: var(--card-shadow);
+            animation: reveal 0.7s ease both;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-family: "Syne", "Franklin Gothic Medium", sans-serif;
+            letter-spacing: 0.02em;
+            font-size: clamp(32px, 4vw, 48px);
+        }
+
+        .hero p {
+            margin: 10px 0 0;
+            max-width: 800px;
+            color: rgba(241, 247, 255, 0.92);
+            font-size: 16px;
+        }
+
+        .stats {
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
+            gap: 12px;
+            animation: reveal 0.9s ease both;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 16px;
+            padding: 12px 14px;
+            backdrop-filter: blur(4px);
+        }
+
+        .stat .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.84;
+        }
+
+        .stat .value {
+            margin-top: 4px;
+            font-size: 27px;
+            font-weight: 700;
+        }
+
+        .layout {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid rgba(13, 31, 45, 0.08);
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            animation: rise 0.65s ease both;
+        }
+
+        .panel-head {
+            padding: 18px 20px 10px;
+        }
+
+        .panel-head h2 {
+            margin: 0;
+            font-family: "Syne", "Franklin Gothic Medium", sans-serif;
+            font-size: 24px;
+        }
+
+        .panel-head p {
+            margin: 8px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .table-wrap {
+            padding: 0 14px 16px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+            font-size: 15px;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(13, 31, 45, 0.09);
+            vertical-align: top;
+        }
+
+        thead th {
+            font-size: 13px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #ffffff;
+        }
+
+        .status-done {
+            background: var(--done);
+        }
+
+        .status-pending {
+            background: var(--pending);
+        }
+
+        .forecast-pane {
+            padding: 14px 16px 18px;
+        }
+
+        .forecast-form {
+            display: grid;
+            gap: 10px;
+            background: #ffffff;
+            border: 1px solid rgba(13, 31, 45, 0.08);
+            border-radius: 16px;
+            padding: 12px;
+        }
+
+        .forecast-form label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #243647;
+        }
+
+        .forecast-form select,
+        .forecast-form textarea {
+            width: 100%;
+            border: 1px solid rgba(13, 31, 45, 0.2);
+            border-radius: 12px;
+            padding: 10px 11px;
+            font: inherit;
+            background: #fffefa;
+            color: var(--ink);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .forecast-form select:focus,
+        .forecast-form textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--ring);
+        }
+
+        .forecast-form textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 11px 14px;
+            font: inherit;
+            font-weight: 700;
+            color: #f8fbff;
+            background: linear-gradient(120deg, #0e7490 0%, #155e75 52%, #0f766e 100%);
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(14, 116, 144, 0.3);
+        }
+
+        .result {
+            margin-top: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(13, 31, 45, 0.09);
+            border-radius: 16px;
+            padding: 12px;
+        }
+
+        .source {
+            margin: 0 0 10px;
+            color: #304252;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .metrics {
+            display: grid;
+            gap: 12px;
+        }
+
+        .metric-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #314454;
+            font-weight: 700;
+        }
+
+        .track {
+            position: relative;
+            height: 14px;
+            background: #e8eff2;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            border-radius: 999px;
+            animation: grow 0.85s ease both;
+        }
+
+        .fill.mood { background: linear-gradient(90deg, #2dd4bf, #0f766e); }
+        .fill.stress { background: linear-gradient(90deg, #f87171, #b91c1c); }
+        .fill.load { background: linear-gradient(90deg, #fbbf24, #d97706); }
+
+        .chip {
+            margin-top: 6px;
+            display: inline-block;
+            font-size: 12px;
+            color: #0f172a;
+            background: #e9f3f5;
+            border: 1px solid #c8dce2;
+            border-radius: 999px;
+            padding: 4px 9px;
+        }
+
+        .summary {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 12px;
+            background: #f3f7f8;
+            border: 1px solid #dce7ea;
+            color: #203342;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .error {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 14px;
+        }
+
+        .empty {
+            margin-top: 12px;
+            border-radius: 14px;
+            border: 1px dashed rgba(13, 31, 45, 0.2);
+            padding: 14px;
+            color: var(--muted);
+            background: #fcfaf3;
+            font-size: 14px;
+        }
+
+        @keyframes reveal {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px) scale(0.995); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes grow {
+            from { width: 0%; }
+            to { width: 100%; }
+        }
+
+        @media (max-width: 1080px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 680px) {
+            .page {
+                padding: 16px 12px 30px;
+            }
+
+            .hero {
+                border-radius: 18px;
+                padding: 18px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <section class="hero">
+            <h1>Task Forecast Studio</h1>
+            <p>Track your tasks and generate a mood, stress, and load forecast from Groq with visual metrics.</p>
+            <div class="stats">
+                <article class="stat">
+                    <div class="label">Total Tasks</div>
+                    <div class="value">{{ total_tasks }}</div>
+                </article>
+                <article class="stat">
+                    <div class="label">Pending</div>
+                    <div class="value">{{ pending_tasks }}</div>
+                </article>
+                <article class="stat">
+                    <div class="label">Done</div>
+                    <div class="value">{{ done_tasks }}</div>
+                </article>
+                <article class="stat">
+                    <div class="label">With Due Date</div>
+                    <div class="value">{{ due_tasks }}</div>
+                </article>
+            </div>
+        </section>
+
+        <main class="layout">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Task List</h2>
+                    <p>All tasks with status and due date.</p>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Description</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>{{ task['id'] }}</td>
+                                <td>{{ task['description'] }}</td>
+                                <td>{{ task['due_date'] if task['due_date'] else 'No due date' }}</td>
+                                <td>
+                                    <span class="status-pill status-{{ task['status']|lower }}">{{ task['status'] }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Forecast Graph</h2>
+                    <p>Generate a visual mood/stress/load projection.</p>
+                </div>
+                <div class="forecast-pane">
+                    <form method="post" class="forecast-form">
+                        <label for="task_id">Forecast from existing task</label>
+                        <select id="task_id" name="task_id">
+                            <option value="">Select task</option>
+                            {% for task in tasks %}
+                            <option value="{{ task['id'] }}" {% if selected_task_id == (task['id']|string) %}selected{% endif %}>#{{ task['id'] }} - {{ task['description'] }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label for="custom_description">Or custom description</label>
+                        <textarea id="custom_description" name="custom_description" placeholder="Example: Finalize release notes, fix bugs, and prepare stakeholder demo">{{ custom_description }}</textarea>
+
+                        <button class="btn" type="submit">Generate Forecast Graph</button>
+                    </form>
+
+                    {% if forecast_error %}
+                    <div class="error">{{ forecast_error }}</div>
+                    {% endif %}
+
+                    {% if forecast %}
+                    <section class="result">
+                        <p class="source"><strong>Based on:</strong> {{ forecast['source_description'] }}</p>
+
+                        <div class="metrics">
+                            <div class="metric">
+                                <div class="metric-head"><span>Mood</span><span>{{ forecast['mood_score'] }}%</span></div>
+                                <div class="track"><div class="fill mood" data-score="{{ forecast['mood_score'] }}"></div></div>
+                                <span class="chip">{{ forecast['mood'] }}</span>
+                            </div>
+
+                            <div class="metric">
+                                <div class="metric-head"><span>Stress</span><span>{{ forecast['stress_score'] }}%</span></div>
+                                <div class="track"><div class="fill stress" data-score="{{ forecast['stress_score'] }}"></div></div>
+                                <span class="chip">{{ forecast['stress'] }}</span>
+                            </div>
+
+                            <div class="metric">
+                                <div class="metric-head"><span>Load</span><span>{{ forecast['load_score'] }}%</span></div>
+                                <div class="track"><div class="fill load" data-score="{{ forecast['load_score'] }}"></div></div>
+                                <span class="chip">{{ forecast['load'] }}</span>
+                            </div>
+                        </div>
+
+                        <div class="summary">{{ forecast['summary'] }}</div>
+                    </section>
+                    {% else %}
+                    <div class="empty">No graph yet. Pick a task (or paste a custom description) and click Generate Forecast Graph.</div>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        document.querySelectorAll('.fill[data-score]').forEach((bar) => {
+            const raw = Number(bar.getAttribute('data-score') || 0);
+            const safe = Math.max(0, Math.min(100, raw));
+            bar.style.width = `${safe}%`;
+        });
+    </script>
+</body>
+</html>
