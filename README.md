@@ -48,6 +48,19 @@ Der Datenfluss ist bewusst einfach gehalten:
 4. Die Forecast-Schicht prüft den Cache und ruft Groq nur bei Bedarf auf.
 5. Das Ergebnis wird formatiert und zurückgegeben.
 
+### API-Endpunkte und Datenzugriff
+
+Bot und Dashboard greifen auf dieselbe Datenlogik zu, um Konsistenz zu gewährleisten. Anstatt einer klassischen REST-API teilen sie sich die `database`- und `core`-Module.
+
+- **`database/db.py`**: Stellt Funktionen wie `get_tasks()`, `add_task()` etc. bereit.
+- **`core/logic.py`**: Enthält reine Funktionen zur Datenverarbeitung und -formatierung.
+
+Ein REST-API-Äquivalent könnte so aussehen:
+
+- `GET /tasks`: Ruft alle Aufgaben ab.
+- `POST /tasks`: Erstellt eine neue Aufgabe.
+- `POST /tasks/:id/forecast`: Erzeugt einen Forecast für eine bestimmte Aufgabe.
+
 ## So startest du die App
 
 Voraussetzung sind die Umgebungsvariablen `TELEGRAM_TOKEN` und `GROQ_API_KEY` in einer `.env`-Datei.
@@ -72,10 +85,15 @@ Die SQLite-Datenbank enthält zwei zentrale Datenbereiche.
 
 Eine Aufgabe besteht aus:
 
-- `id`
-- `description`
-- `status`
-- `due_date`
+- `id`: Eindeutiger Primärschlüssel.
+- `user_id`: Telegram User-ID, um Aufgaben zuzuordnen.
+- `description`: Aufgabenbeschreibung.
+- `status`: Status der Aufgabe (z. B. `todo`, `in_progress`, `done`).
+- `priority`: Priorität (z. B. 1-5).
+- `tags`: Komma-getrennte Liste von Tags.
+- `due_date`: Fälligkeitsdatum.
+- `created_at`: Zeitstempel der Erstellung.
+- `updated_at`: Zeitstempel der letzten Änderung.
 
 ### Forecast-Cache
 
