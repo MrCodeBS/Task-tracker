@@ -109,8 +109,10 @@ Der Cache speichert:
 ## Funktionale Verarbeitung und Pipeline-Ansatz
 
 Das Projekt folgt den Prinzipien des **Functional Design** (BG2). Durch den Einsatz von *Immutable Data Types* (Dicts/Tuples) und *Pure Functions* bleibt die Logik testbar und vorhersehbar. Die *Domain of Interest* (Aufgabenverwaltung) ist strikt von den Seiteneffekten (Telegram-API, DB) getrennt. 
+Das Projekt folgt den Prinzipien des **Functional Design** (BG2). Durch den Einsatz von *Immutable Data Types* (Dicts/Tuples) und *Pure Functions* bleibt die Logik testbar und vorhersehbar. Die *Domain of Interest* (Aufgabenverwaltung) ist strikt von den Seiteneffekten (Telegram-API, DB) getrennt.
 
 Die Architektur ist auf der Design-Ebene deklarativ aufgebaut: Sie beschreibt die Transformation von Datenzuständen, anstatt explizite Hardware-Steuerbefehle zu geben (BE2). In `core/logic.py` werden **Algorithmen** (C1G) als finite, deterministische Abfolgen von Rechenschritten implementiert, die bei gleichem Input stets den gleichen Output liefern.
+Die Architektur ist auf der Design-Ebene deklarativ aufgebaut (BE2): Das System beschreibt den Datenfluss zwischen Modulen (Input -> Logic -> Output), anstatt die exakte Abfolge von CPU-Registern oder Speicheradressen manuell zu steuern. Die Logik-Schicht implementiert **Algorithmen** (C1G) als endliche, deterministische Abfolgen von Rechenschritten.
 
 ### Nachweis funktionaler Konzepte (Band C)
 
@@ -125,6 +127,8 @@ sum_ids = lambda acc, t: acc + t['id']  # Lambda mit 2 Parametern (C3F)
 pending_descriptions = map(get_desc, filter(lambda t: t["status"] != "done", tasks))
 
 # C4G/C4F: Reduce zur Aggregation
+# C4G/C4F: Reduce zur Aggregation (Nachweis für C4G)
+from functools import reduce
 total_id_sum = reduce(lambda acc, t: acc + t['id'], tasks, 0)
 
 # C2E: Closures und Currying zur Konfiguration von Filtern
@@ -135,7 +139,28 @@ done_filter = status_is("done")
 done_tasks = filter(done_filter, tasks)
 
 # C4E: Komplexe Datenverarbeitung (Gruppierung)
+# C4E: Komplexe Datenverarbeitung (Gruppierung nach Status)
+from itertools import groupby
 grouped = {k: list(g) for k, g in groupby(sorted_tasks, key=lambda t: t['status'])}
+```
+
+### Nachweis funktionaler Konzepte (Band C)
+
+Um komplexe Datenverarbeitung deklarativ zu lösen (C4E), werden Lambdas und funktionale Ketten verwendet:
+
+```python
+# C3G/C3F: Lambda-Ausdrücke zur Steuerung
+get_desc = lambda t: t.get("description", "")
+
+# C4G/C4F: Map & Filter kombiniert
+pending_descriptions = map(get_desc, filter(lambda t: t["status"] != "done", tasks))
+
+# C2E: Closures und Currying zur Konfiguration von Filtern
+def status_is(target_status):
+    return lambda task: task.get("status") == target_status
+
+done_filter = status_is("done")
+done_tasks = filter(done_filter, tasks)
 ```
 
 Reine Funktionen in [core/logic.py](core/logic.py) übernehmen Aufgaben wie:
@@ -158,6 +183,7 @@ Der Vorteil: Der Ablauf ist leichter nachvollziehbar und die Handler bleiben deu
 ## Refactoring und Performance
 
 Bei der Entwicklung wurden Refactoring-Techniken wie **Extract Function** (Auslagern der Formatierung in `logic.py`) und **Duplicate Removal** (Zusammenführung von Forecast-Logik) angewendet (DG1).
+Bei der Entwicklung wurden Refactoring-Techniken wie **Extract Function** (Auslagern der Formatierung in `logic.py`) und **Duplicate Removal** (Zusammenführung von Forecast-Logik) angewendet (DG1). Jedes Refactoring birgt das Risiko von Regressionsfehlern (Nebenwirkungen); durch die Konzentration der Logik in Pure Functions können diese jedoch isoliert und durch Unit-Tests abgesichert werden (DE1).
 
 ### Deklarative Anforderungen (Band B)
 
@@ -170,6 +196,8 @@ Ein Kernziel war die Umformung imperativer Abläufe in deklarative Beschreibunge
 Die wichtigsten Performance-Massnahmen sind:
 
 - Forecast-Caching statt wiederholter Groq-Aufrufe
+- **Effiziente Datenstrukturen (DE2):** Einsatz von SQLite als persistenter Cache.
+  *Trade-off:* SQLite bietet hohe Performance und ACID-Konformität bei minimalem Setup (Zero-Config), ist jedoch weniger für massive, verteilte Schreibzugriffe geeignet als ein dedizierter DB-Server wie PostgreSQL.
 - Vermeidung unnötiger Berechnungen
 - einmalige Aufbereitung der Task-Daten vor Anzeige und Statistik
 

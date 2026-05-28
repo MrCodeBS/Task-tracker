@@ -43,6 +43,7 @@ def get_pending_descriptions(tasks: Iterable[Dict[str, Any]]) -> List[str]:
 
 
 # C4G/C4F: Einsatz von reduce zur Aggregation (Summe der IDs als Beispiel für C4)
+# C3F: Lambda mit zwei Parametern (Accumulator und Element)
 def get_total_id_sum(tasks: Iterable[Dict[str, Any]]) -> int:
     """Calculate the sum of all task IDs using reduce (C4G/C4F)."""
     # C3F: Lambda mit zwei Parametern (Accumulator und Element)
@@ -54,7 +55,11 @@ def group_tasks_by_status(tasks: Iterable[Dict[str, Any]]) -> Dict[str, List[Dic
     """Groups tasks by their status using a functional approach (C4E)."""
     # C1G: Ein Algorithmus ist eine endliche Folge von eindeutigen Anweisungen.
     # Eigenschaften: Finitheit (endet nach endlichen Schritten) und Determiniertheit.
+    # Algorithmus-Eigenschaften: Finitheit (endet) und Determiniertheit (eindeutiger Output).
+    # Wir sortieren erst, da groupby aufeinanderfolgende Keys gruppiert.
     sorted_tasks = sorted(tasks, key=lambda t: t.get("status", "unknown"))
+    
+    # Deklarative Gruppierung mittels Dictionary Comprehension und groupby
     return {
         status: list(group) 
         for status, group in groupby(sorted_tasks, key=lambda t: t.get("status", "unknown"))
