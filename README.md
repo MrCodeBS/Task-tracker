@@ -108,7 +108,9 @@ Der Cache speichert:
 
 ## Funktionale Verarbeitung und Pipeline-Ansatz
 
-Das Projekt folgt den Prinzipien des **Functional Design** (BG2). Durch den Einsatz von *Immutable Data Types* (Dicts/Tuples) und *Pure Functions* bleibt die Logik testbar und vorhersehbar. Die *Domain of Interest* (Aufgabenverwaltung) ist strikt von den Seiteneffekten (Telegram-API, DB) getrennt.
+Das Projekt folgt den Prinzipien des **Functional Design** (BG2). Durch den Einsatz von *Immutable Data Types* (Dicts/Tuples) und *Pure Functions* bleibt die Logik testbar und vorhersehbar. Die *Domain of Interest* (Aufgabenverwaltung) ist strikt von den Seiteneffekten (Telegram-API, DB) getrennt. 
+
+Die Architektur ist auf der Design-Ebene deklarativ aufgebaut: Sie beschreibt die Transformation von Datenzuständen, anstatt explizite Hardware-Steuerbefehle zu geben (BE2). In `core/logic.py` werden **Algorithmen** (C1G) als finite, deterministische Abfolgen von Rechenschritten implementiert, die bei gleichem Input stets den gleichen Output liefern.
 
 ### Nachweis funktionaler Konzepte (Band C)
 
@@ -117,9 +119,13 @@ Um komplexe Datenverarbeitung deklarativ zu lösen (C4E), werden Lambdas und fun
 ```python
 # C3G/C3F: Lambda-Ausdrücke zur Steuerung
 get_desc = lambda t: t.get("description", "")
+sum_ids = lambda acc, t: acc + t['id']  # Lambda mit 2 Parametern (C3F)
 
 # C4G/C4F: Map & Filter kombiniert
 pending_descriptions = map(get_desc, filter(lambda t: t["status"] != "done", tasks))
+
+# C4G/C4F: Reduce zur Aggregation
+total_id_sum = reduce(lambda acc, t: acc + t['id'], tasks, 0)
 
 # C2E: Closures und Currying zur Konfiguration von Filtern
 def status_is(target_status):
@@ -127,6 +133,9 @@ def status_is(target_status):
 
 done_filter = status_is("done")
 done_tasks = filter(done_filter, tasks)
+
+# C4E: Komplexe Datenverarbeitung (Gruppierung)
+grouped = {k: list(g) for k, g in groupby(sorted_tasks, key=lambda t: t['status'])}
 ```
 
 Reine Funktionen in [core/logic.py](core/logic.py) übernehmen Aufgaben wie:

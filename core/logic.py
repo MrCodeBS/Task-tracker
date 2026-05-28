@@ -5,6 +5,8 @@ They make the codebase easier to reason about and test in a functional style.
 """
 from typing import Iterable, Mapping, Dict, Any
 from typing import Iterable, Mapping, Dict, Any, List, Callable
+from functools import reduce
+from itertools import groupby
 
 
 def format_task_row(row: Mapping[str, Any]) -> Dict[str, Any]:
@@ -38,6 +40,25 @@ def get_pending_descriptions(tasks: Iterable[Dict[str, Any]]) -> List[str]:
     # Filter und Map Kombination (C4F)
     pending_tasks = filter(lambda t: t.get("status") != "done", tasks)
     return list(map(get_desc, pending_tasks))
+
+
+# C4G/C4F: Einsatz von reduce zur Aggregation (Summe der IDs als Beispiel für C4)
+def get_total_id_sum(tasks: Iterable[Dict[str, Any]]) -> int:
+    """Calculate the sum of all task IDs using reduce (C4G/C4F)."""
+    # C3F: Lambda mit zwei Parametern (Accumulator und Element)
+    return reduce(lambda acc, t: acc + t.get("id", 0), tasks, 0)
+
+
+# C4E: Komplexe Datenverarbeitung - Gruppierung von Tasks nach Status
+def group_tasks_by_status(tasks: Iterable[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Groups tasks by their status using a functional approach (C4E)."""
+    # C1G: Ein Algorithmus ist eine endliche Folge von eindeutigen Anweisungen.
+    # Eigenschaften: Finitheit (endet nach endlichen Schritten) und Determiniertheit.
+    sorted_tasks = sorted(tasks, key=lambda t: t.get("status", "unknown"))
+    return {
+        status: list(group) 
+        for status, group in groupby(sorted_tasks, key=lambda t: t.get("status", "unknown"))
+    }
 
 
 def tasks_summary(tasks: Iterable[Dict[str, Any]]) -> Dict[str, int]:
