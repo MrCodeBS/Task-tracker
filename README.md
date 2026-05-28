@@ -31,6 +31,32 @@ Der Nutzen entsteht durch drei Perspektiven auf dieselben Daten:
 - Aufgaben und Forecasts im Dashboard anzeigen
 
 ## Architektur und Datenfluss
+![alt text](image.png)
+```mermaid
+graph TD
+    subgraph Interface
+        TB[bot/telegram_bot.py]
+        WD[dashboard/app.py]
+    end
+
+    subgraph Processing
+        CL[core/logic.py - Pure Functions]
+        GA[groq_api/forecasting.py]
+    end
+
+    subgraph Persistence
+        DB[database/db.py]
+        SQL[(tasks.db - SQLite)]
+    end
+
+    User((User)) --> TB & WD
+    TB & WD --> CL
+    TB & WD --> DB
+    TB --> GA
+    GA <--> DB
+    GA -.->|API Call| Groq((Groq AI))
+    DB <--> SQL
+```
 
 Das Projekt ist in kleine, klar abgegrenzte Teile zerlegt:
 
