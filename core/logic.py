@@ -4,6 +4,7 @@ These functions are side-effect free and operate only on inputs to produce outpu
 They make the codebase easier to reason about and test in a functional style.
 """
 from typing import Iterable, Mapping, Dict, Any
+from typing import Iterable, Mapping, Dict, Any, List, Callable
 
 
 def format_task_row(row: Mapping[str, Any]) -> Dict[str, Any]:
@@ -20,6 +21,23 @@ def format_task_row(row: Mapping[str, Any]) -> Dict[str, Any]:
 def format_tasks_list(rows: Iterable[Dict[str, Any]]) -> list:
     """Return a list of formatted task dicts from DB rows."""
     return [format_task_row(r) for r in rows]
+
+
+# C2E: Closures und Currying zur Erzeugung spezialisierter Filter (Band C)
+def status_is(target_status: str) -> Callable[[Dict[str, Any]], bool]:
+    """Return a function that checks if a task has a specific status."""
+    return lambda task: str(task.get("status", "")).lower() == target_status.lower()
+
+
+# C3/C4: Verwendung von Lambdas, Map und Filter zur Datenverarbeitung
+def get_pending_descriptions(tasks: Iterable[Dict[str, Any]]) -> List[str]:
+    """Return descriptions of all non-done tasks using a functional pipeline."""
+    # Lambda zur Extraktion (C3G)
+    get_desc = lambda t: t.get("description", "No description")
+    
+    # Filter und Map Kombination (C4F)
+    pending_tasks = filter(lambda t: t.get("status") != "done", tasks)
+    return list(map(get_desc, pending_tasks))
 
 
 def tasks_summary(tasks: Iterable[Dict[str, Any]]) -> Dict[str, int]:

@@ -108,7 +108,28 @@ Der Cache speichert:
 
 ## Funktionale Verarbeitung und Pipeline-Ansatz
 
-Das Projekt trennt fachliche Logik und Seiteneffekte. Reine Funktionen in [core/logic.py](core/logic.py) übernehmen Aufgaben wie:
+Das Projekt folgt den Prinzipien des **Functional Design** (BG2). Durch den Einsatz von *Immutable Data Types* (Dicts/Tuples) und *Pure Functions* bleibt die Logik testbar und vorhersehbar. Die *Domain of Interest* (Aufgabenverwaltung) ist strikt von den Seiteneffekten (Telegram-API, DB) getrennt.
+
+### Nachweis funktionaler Konzepte (Band C)
+
+Um komplexe Datenverarbeitung deklarativ zu lösen (C4E), werden Lambdas und funktionale Ketten verwendet:
+
+```python
+# C3G/C3F: Lambda-Ausdrücke zur Steuerung
+get_desc = lambda t: t.get("description", "")
+
+# C4G/C4F: Map & Filter kombiniert
+pending_descriptions = map(get_desc, filter(lambda t: t["status"] != "done", tasks))
+
+# C2E: Closures und Currying zur Konfiguration von Filtern
+def status_is(target_status):
+    return lambda task: task.get("status") == target_status
+
+done_filter = status_is("done")
+done_tasks = filter(done_filter, tasks)
+```
+
+Reine Funktionen in [core/logic.py](core/logic.py) übernehmen Aufgaben wie:
 
 - Zeilen aus der Datenbank formatieren
 - Task-Listen als Text aufbauen
@@ -127,7 +148,15 @@ Der Vorteil: Der Ablauf ist leichter nachvollziehbar und die Handler bleiben deu
 
 ## Refactoring und Performance
 
-Der Code wurde so umgebaut, dass wiederholte oder gemischte Logik in kleine wiederverwendbare Funktionen verschoben wurde. Das verbessert Lesbarkeit, Testbarkeit und Wartbarkeit.
+Bei der Entwicklung wurden Refactoring-Techniken wie **Extract Function** (Auslagern der Formatierung in `logic.py`) und **Duplicate Removal** (Zusammenführung von Forecast-Logik) angewendet (DG1).
+
+### Deklarative Anforderungen (Band B)
+
+Ein Kernziel war die Umformung imperativer Abläufe in deklarative Beschreibungen (BE1):
+
+- **Imperativ:** "Erstelle eine leere Liste. Gehe alle Zeilen durch. Wenn die ID übereinstimmt, speichere das Element und brich die Schleife ab."
+- **Deklarativ:** "Finde das erste Element in der Menge der Aufgaben, dessen ID dem Suchkriterium entspricht."
+  - *Umsetzung:* `next((t for t in tasks if t['id'] == search_id), None)` in `select_task_by_id`.
 
 Die wichtigsten Performance-Massnahmen sind:
 
