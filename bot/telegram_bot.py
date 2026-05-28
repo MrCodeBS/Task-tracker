@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from dotenv import load_dotenv
 from database import db
 from groq_api import forecasting
+from core import logic
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 DESCRIPTION, DUE_DATE, ADD_DESCRIPTION_ID, ADD_DESCRIPTION_TEXT = range(4)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("Welcome to the Task Tracker Bot! Use /add, /tasks, /list, /done <id>, /delete <id>, /add_description, /forecast <task>, or /forecast_refresh <task>")
+    await update.message.reply_text(logic.build_help_message())
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Please provide a task description.")
@@ -26,9 +27,7 @@ async def description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return DUE_DATE
 
 async def due_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    due_date_val = update.message.text
-    if due_date_val.lower() == "none":
-        due_date_val = None
+    due_date_val = logic.normalize_optional_text(update.message.text)
     description_val = context.user_data["description"]
     db.add_task(description_val, due_date_val)
     await update.message.reply_text(f"Task \"{description_val}\" added.")
@@ -41,15 +40,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 async def tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    all_tasks = db.get_tasks()
-    if all_tasks:
-        message = "Your tasks:\n"
-        for task in all_tasks:
-            due_str = f" (Due: {task['due_date']})" if task["due_date"] else ""
-            message += f"{task['id']}: {task['description']} [{task['status']}] {due_str}\n"
-        await update.message.reply_text(message)
-    else:
-        await update.message.reply_text("You have no tasks.")
+    rows = db.get_tasks()
+    tasks = logic.format_tasks_list(rows)
+    message = logic.format_tasks_message(tasks)
+    await update.message.reply_text(message)
 
 async def done_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
@@ -68,34 +62,38 @@ async def delete_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text("Please provide a valid task ID: /delete <id>")
 
 async def forecast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    task_description = " ".join(context.args)
-    if task_description:
-        forecast_data = forecasting.get_forecast(task_description)
-        if "error" in forecast_data:
-            await update.message.reply_text(forecast_data["error"])
-        else:
-            msg = f"Forecast for \"{task_description}\":\n"
-            msg += f"Mood: {forecast_data.get('mood', 'N/A')}\n"
-            msg += f"Stress: {forecast_data.get('stress', 'N/A')}\n"
-            msg += f"Load: {forecast_data.get('load', 'N/A')}"
-            await update.message.reply_text(msg)
-    else:
-        await update.message.reply_text("Please provide a task description: /forecast <task>")
+    try:
+        task_id = int(context.args[0])
+    except (IndexError, ValueError):
+        await update.message.reply_text("Please provide a valid task ID: /forecast <id>")
+        return
+
+    task_item = logic.select_task_by_id(logic.format_tasks_list(db.get_tasks()), task_id)
+    if not task_item:
+        await update.message.reply_text(f"Task {task_id} was not found.")
+        return
+
+    task_description = task_item["description"]
+    forecast_data = forecasting.get_forecast(task_description)
+    msg = logic.format_forecast_message(task_description, forecast_data)
+    await update.message.reply_text(msg)
 
 async def forecast_refresh_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    task_description = " ".join(context.args)
-    if task_description:
-        forecast_data = forecasting.get_forecast(task_description, force_refresh=True)
-        if "error" in forecast_data:
-            await update.message.reply_text(forecast_data["error"])
-        else:
-            msg = f"Refreshed forecast for \"{task_description}\":\n"
-            msg += f"Mood: {forecast_data.get('mood', 'N/A')}\n"
-            msg += f"Stress: {forecast_data.get('stress', 'N/A')}\n"
-            msg += f"Load: {forecast_data.get('load', 'N/A')}"
-            await update.message.reply_text(msg)
-    else:
-        await update.message.reply_text("Please provide a task description: /forecast_refresh <task>")
+    try:
+        task_id = int(context.args[0])
+    except (IndexError, ValueError):
+        await update.message.reply_text("Please provide a valid task ID: /forecast_refresh <id>")
+        return
+
+    task_item = logic.select_task_by_id(logic.format_tasks_list(db.get_tasks()), task_id)
+    if not task_item:
+        await update.message.reply_text(f"Task {task_id} was not found.")
+        return
+
+    task_description = task_item["description"]
+    forecast_data = forecasting.get_forecast(task_description, force_refresh=True)
+    msg = logic.format_forecast_message(task_description, forecast_data)
+    await update.message.reply_text(msg)
 
 async def add_description_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Please provide the task ID to update.")
@@ -114,10 +112,10 @@ async def add_description_id(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def add_description_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     task_id = context.user_data["task_id"]
     extra_desc = update.message.text
-    all_tasks = db.get_tasks()
-    task_item = next((t for t in all_tasks if t["id"] == task_id), None)
+    tasks = logic.format_tasks_list(db.get_tasks())
+    task_item = logic.select_task_by_id(tasks, task_id)
     if task_item:
-        new_desc = f"{task_item['description']}\n{extra_desc}"
+        new_desc = logic.build_task_description(task_item["description"], extra_desc)
         db.update_task_description(task_id, new_desc)
         await update.message.reply_text(f"Task {task_id} updated.")
     else:
@@ -127,6 +125,35 @@ async def add_description_text(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Unknown command. Type /start for help.")
+
+
+async def forecast_all_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Refresh forecasts for all tasks if the user passes 'confirm' as an argument.
+
+    This protects against accidental heavy API calls.
+    """
+    args = context.args or []
+    if not args or args[0].lower() != "confirm":
+        await update.message.reply_text("This will refresh forecasts for all tasks. Run `/forecast_all confirm` to proceed.")
+        return
+
+    tasks = logic.format_tasks_list(db.get_tasks())
+    total = len(tasks)
+    refreshed = 0
+    failed = 0
+    await update.message.reply_text(f"Starting refresh for {total} tasks...")
+    for t in tasks:
+        desc = t.get("description")
+        if not desc:
+            failed += 1
+            continue
+        res = forecasting.get_forecast(desc, force_refresh=True)
+        if isinstance(res, dict) and res.get("error"):
+            failed += 1
+        else:
+            refreshed += 1
+
+    await update.message.reply_text(f"Forecast refresh complete. Refreshed: {refreshed}, Failed: {failed}, Total: {total}")
 
 def main() -> None:
     application = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -158,6 +185,7 @@ def main() -> None:
     application.add_handler(CommandHandler("delete", delete_cmd))
     application.add_handler(CommandHandler("forecast", forecast_cmd))
     application.add_handler(CommandHandler("forecast_refresh", forecast_refresh_cmd))
+    application.add_handler(CommandHandler("forecast_all", forecast_all_cmd))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown))
 
     application.run_polling()

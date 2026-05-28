@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request
 from database import db
 from groq_api import forecasting
+from core import logic
 
 app = Flask(__name__)
 
@@ -15,7 +16,8 @@ def _task_by_id(tasks, task_id):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    tasks = db.get_tasks()
+    rows = db.get_tasks()
+    tasks = logic.format_tasks_list(rows)
     forecast = None
     forecast_error = None
     selected_task_id = ""
@@ -45,10 +47,11 @@ def index():
                 forecast = result
                 forecast['source_description'] = source_description
 
-    total_tasks = len(tasks)
-    done_tasks = sum(1 for task in tasks if str(task['status']).lower() == 'done')
-    pending_tasks = total_tasks - done_tasks
-    due_tasks = sum(1 for task in tasks if task['due_date'])
+    summary = logic.tasks_summary(tasks)
+    total_tasks = summary['total']
+    done_tasks = summary['done']
+    pending_tasks = summary['pending']
+    due_tasks = summary['due']
 
     return render_template(
         'index.html',

@@ -16,6 +16,26 @@ def _task_key(task_description: str) -> str:
     return re.sub(r"\s+", " ", (task_description or "").strip().lower())
 
 
+def build_forecast_prompt(task_description: str) -> str:
+    """Build the deterministic prompt used for every forecast request."""
+    return (
+        "You are a forecasting assistant. "
+        "For identical task text, produce identical output. "
+        "Return ONLY valid JSON with keys: "
+        "mood, stress, load, mood_score, stress_score, load_score, summary. "
+        "Use strict labels: mood in [positive, neutral, negative]; "
+        "stress in [low, medium, high]; load in [low, medium, high]. "
+        "Scores must be integers from 0 to 100. "
+        "Keep summary concise (1-2 sentences). "
+        f"Task: {task_description}"
+    )
+
+
+def build_generation_options() -> dict:
+    """Return deterministic generation options for the Groq client."""
+    return {"temperature": 0, "top_p": 1, "response_format": {"type": "json_object"}}
+
+
 def _keyword_score(text: str, fallback: int) -> int:
     text_lower = (text or "").strip().lower()
     mapping = {
@@ -100,28 +120,11 @@ def get_forecast(task_description: str, force_refresh: bool = False) -> dict:
         client = Groq(api_key=GROQ_API_KEY)
         chat_completion = client.chat.completions.create(
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a forecasting assistant. "
-                        "For identical task text, produce identical output. "
-                        "Return ONLY valid JSON with keys: "
-                        "mood, stress, load, mood_score, stress_score, load_score, summary. "
-                        "Use strict labels: mood in [positive, neutral, negative]; "
-                        "stress in [low, medium, high]; load in [low, medium, high]. "
-                        "Scores must be integers from 0 to 100. "
-                        "Keep summary concise (1-2 sentences)."
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"Task: {task_description}",
-                }
+                {"role": "system", "content": build_forecast_prompt(task_description)},
+                {"role": "user", "content": f"Task: {task_description}"},
             ],
             model=GROQ_MODEL,
-            temperature=0,
-            top_p=1,
-            response_format={"type": "json_object"},
+            **build_generation_options(),
         )
         response_content = chat_completion.choices[0].message.content
         normalized = normalize_forecast(json.loads(response_content))
