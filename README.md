@@ -30,6 +30,7 @@ Der Nutzen entsteht durch drei Perspektiven auf dieselben Daten:
 - Forecasts auf Wunsch neu berechnen
 - Aufgaben und Forecasts im Dashboard anzeigen
 
+
 ## Architektur und Datenfluss
 ![alt text](image.png)
 ```mermaid
